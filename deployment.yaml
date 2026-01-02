@@ -21,24 +21,24 @@ spec:
         args:
           - "--config"
           - "/app/config.yaml"
-          - "--detailed_debug" # Helps us see database connection logs
+          - "--detailed_debug"
         ports:
         - containerPort: 4000
         
         env:
-        # --- 1. CRITICAL: Fix for Read-Only Filesystem Errors ---
-        # Forces Prisma & Python to write to the temp folder (which we made writable)
+        # --- 1. CRITICAL OPENSHIFT FIXES ---
+        # "HOME" dizinini /tmp yapıyoruz. Bu sayede /root/.cache hatası biter.
+        - name: HOME
+          value: "/tmp"
+        
+        # Diğer araçları da /tmp kullanmaya zorluyoruz
         - name: XDG_CACHE_HOME
           value: "/tmp/.cache"
         - name: PRISMA_HOME
           value: "/tmp/prisma"
-        - name: PRISMA_BINARY_CACHE_DIR
-          value: "/tmp/prisma/binaries"
         - name: HF_HOME
           value: "/tmp/hf"
-        - name: NIKA_HOME
-          value: "/tmp/nika"
-
+        
         # --- 2. Database Connection ---
         - name: DB_USER
           valueFrom:
@@ -67,12 +67,11 @@ spec:
               key: LITELLM_MASTER_KEY
 
         volumeMounts:
-        # Mount the config file (Read-Only)
         - name: config-volume
           mountPath: /app/config.yaml
           subPath: config.yaml
         
-        # Mount the Writable Temp Directory (Fixes the crash)
+        # /tmp klasörünü yazılabilir yapıyoruz
         - name: tmp-storage
           mountPath: /tmp
 
@@ -81,6 +80,5 @@ spec:
           configMap:
             name: litellm-config-file
         
-        # Define the writable storage for cache
         - name: tmp-storage
           emptyDir: {}
