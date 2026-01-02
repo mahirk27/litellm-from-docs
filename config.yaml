@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config-file
+  namespace: 
+data:
+  config.yaml: |
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY
+      database_url: os.environ/DATABASE_URL
+      detailed_debug: true
+    
+    litellm_settings:
+      set_verbose: true
+      default_model: openai/gpt-4o-mini
+      
+    
+    model_list:
+      - model_name: openai/gpt-4o-mini
+        litellm_params:
+          model: gpt-4o-mini
+          api_key: "dummy-key"
