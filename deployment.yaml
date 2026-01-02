@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: litellm-proxy
-  namespace: 
+  namespace: genai-genaistudio-int
   labels:
     app: litellm
 spec:
@@ -21,11 +21,25 @@ spec:
         args:
           - "--config"
           - "/app/config.yaml"
+          - "--detailed_debug" # Helps us see database connection logs
         ports:
         - containerPort: 4000
         
         env:
-        # --- Database Connection (Keep this to test DB connectivity) ---
+        # --- 1. CRITICAL: Fix for Read-Only Filesystem Errors ---
+        # Forces Prisma & Python to write to the temp folder (which we made writable)
+        - name: XDG_CACHE_HOME
+          value: "/tmp/.cache"
+        - name: PRISMA_HOME
+          value: "/tmp/prisma"
+        - name: PRISMA_BINARY_CACHE_DIR
+          value: "/tmp/prisma/binaries"
+        - name: HF_HOME
+          value: "/tmp/hf"
+        - name: NIKA_HOME
+          value: "/tmp/nika"
+
+        # --- 2. Database Connection ---
         - name: DB_USER
           valueFrom:
             secretKeyRef:
@@ -42,11 +56,10 @@ spec:
               name: litellm-db-secret
               key: POSTGRES_DB
         
-        
         - name: DATABASE_URL
           value: "postgresql://$(DB_USER):$(DB_PASS)@litellm-postgres-service:5432/$(DB_NAME)"
         
-        
+        # --- 3. Master Key ---
         - name: LITELLM_MASTER_KEY
           valueFrom:
             secretKeyRef:
@@ -54,12 +67,20 @@ spec:
               key: LITELLM_MASTER_KEY
 
         volumeMounts:
-        
+        # Mount the config file (Read-Only)
         - name: config-volume
           mountPath: /app/config.yaml
           subPath: config.yaml
+        
+        # Mount the Writable Temp Directory (Fixes the crash)
+        - name: tmp-storage
+          mountPath: /tmp
 
       volumes:
         - name: config-volume
           configMap:
             name: litellm-config-file
+        
+        # Define the writable storage for cache
+        - name: tmp-storage
+          emptyDir: {}
